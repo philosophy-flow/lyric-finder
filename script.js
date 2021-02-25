@@ -15,8 +15,17 @@ async function getResults(term) {
 
 // Get song lyrics
 async function getLyrics(artist, title) {
+  // Create abort controller for requests that take too long (> 5 seconds)
+  const controller = new AbortController();
+  const signal = controller.signal;
+
+  setTimeout(() => {
+    controller.abort();
+  }, 5000);
+
+
   resultField.innerHTML = 'Retrieving lyrics...';
-  const response = await fetch(`${apiURL}/v1/${artist}/${title}`);
+  const response = await fetch(`${apiURL}/v1/${artist}/${title}`, {signal});
   const data = await response.json();
 
   // REGEX for clean rendering - replacing \r\n w/ >br>
@@ -31,7 +40,6 @@ async function getLyrics(artist, title) {
 
 // Render results to DOM
 function renderResults(data) {
-  console.log(data);
   const htmlData = data.map(song => {
     return (
       `<li data-artist="${song.artist.name}" data-title="${song.title}">
@@ -56,6 +64,11 @@ resultField.addEventListener('click', e => {
   if (e.target.nodeName === 'BUTTON') {
     const artist = e.target.getAttribute('data-artist');
     const title = e.target.getAttribute('data-title');
-    getLyrics(artist, title);
+
+    // If lyric request takes more than five seconds, request aborts and
+    // throw error.
+    getLyrics(artist, title).catch(e => {
+      resultField.innerHTML = 'Lyrics are not available for this song. Please make another selection.';
+    });
   }
 });
